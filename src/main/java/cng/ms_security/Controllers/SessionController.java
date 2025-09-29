@@ -29,6 +29,7 @@ public class SessionController {
     public Session create(@RequestBody Session newSession){
         return this.theSessionRepository.save(newSession);
     }
+
     @PutMapping("{id}")
     public Session update(@PathVariable String id, @RequestBody Session newSession){
         Session actualSession=this.theSessionRepository.findById(id).orElse(null);
