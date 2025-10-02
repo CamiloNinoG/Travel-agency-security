@@ -6,6 +6,8 @@ import cng.ms_security.Repositories.SessionRepository;
 import cng.ms_security.Repositories.UserRepository;
 import cng.ms_security.Services.EncryptionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,10 +36,18 @@ public class UserController {
         }
 
         @PostMapping
-        public User create(@RequestBody User newUser){
-            // VALIDAR QUE EL USUARIO NO EXISTA CON  EL MISMO CORREO, consulta en la db.
+        public ResponseEntity<?> create(@RequestBody User newUser) {
+            User existingUser = theUserRepository.getUserByEmail(newUser.getEmail());
+
+            if (existingUser != null) {
+                return ResponseEntity
+                        .badRequest()
+                        .body("El correo ya está registrado");
+            }
+
             newUser.setPassword(this.theEncryptionService.convertSHA256(newUser.getPassword()));
-            return this.theUserRepository.save(newUser);
+            User savedUser = this.theUserRepository.save(newUser);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
         }
 
         @PutMapping("{id}")

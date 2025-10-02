@@ -39,10 +39,6 @@ public class Session {
         return _id;
     }
 
-    public void set_id(String _id) {
-        this._id = _id;
-    }
-
     public String getToken() {
         return token;
     }
