@@ -84,8 +84,8 @@ public class SessionController {
 
             HashMap<String, String> emailRequest = new HashMap<>();
             emailRequest.put("to", theUser.getEmail());
-            emailRequest.put("subject", "Tu código de verificación 2FA");
-            emailRequest.put("message", "Hola, tu código de verificación es: " + theSession.getCode2FA());
+            emailRequest.put("subject", "Reenvio código de verificación 2FA");
+            emailRequest.put("message", "Hola, recuerda que este es tu codigo de verificación: " + theSession.getCode2FA());
 
             HttpEntity<HashMap<String, String>> requestEntity = new HttpEntity<>(emailRequest, headers);
             restTemplate.postForObject(url, requestEntity, String.class);
