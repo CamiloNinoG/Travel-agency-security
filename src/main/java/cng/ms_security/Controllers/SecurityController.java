@@ -21,6 +21,7 @@ import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.time.ZoneId;
 import java.util.Date;
@@ -124,10 +125,31 @@ public class SecurityController {
 
         User theUser = theSession.getUser();
         String token = theJwtService.generateToken(theUser);
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+        String fechaHora = now.format(formatter);
 
         theSession.setToken(token);
         theSessionRepository.save(theSession);
 
+        try{
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "http://localhost:5000/api/v1/send-email";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HashMap<String, String> emailRequest = new HashMap<>();
+            emailRequest.put("to", theUser.getEmail());
+            emailRequest.put("subject", "Nuevo acceso a la App");
+            emailRequest.put("message", "Hola, " + theUser.getName() + ". Se detectó un nuevo inicio de sesión en tu cuenta el día " + fechaHora + ". Si no fuiste tu, cambia tu contraseña de inmediato");
+
+            HttpEntity<HashMap<String, String>> requestEntity = new HttpEntity<>(emailRequest, headers);
+
+            restTemplate.postForObject(url, requestEntity, String.class);
+        }catch(Exception e){
+            System.out.println("Error enviando correo: "+e.getMessage());
+        }
 
         theUser.setPassword("");
         theResponse.put("token", token);
