@@ -14,12 +14,12 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
 
-/*
+
         registry.addInterceptor(securityInterceptor)
                .addPathPatterns("/api/**") //dice que siempre se intercepten las urls
                .excludePathPatterns("/api/public/**"); //solo el login esta excepto, porque es publica.
         // CREAR UN USUARIO - PERMISO - ROL
         // USUARIO -> AGREGAR ROLE -> AGEGAR PERMISO.
-*/
+
     }
 }
