@@ -1,5 +1,6 @@
 package cng.ms_security.Controllers;
 
+
 import cng.ms_security.Models.Permission;
 import cng.ms_security.Models.Session;
 import cng.ms_security.Models.User;
@@ -8,7 +9,7 @@ import cng.ms_security.Repositories.UserRepository;
 import cng.ms_security.Services.EncryptionService;
 import cng.ms_security.Services.FAService;
 import cng.ms_security.Services.JwtService;
-// import cng.ms_security.Services.ValidatorsService;
+import cng.ms_security.Services.ValidatorsService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,11 +18,23 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpHeaders;
+import org.springframework.beans.factory.annotation.Value;
+/*
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport; */
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
+import java.util.*;
+
 
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.time.ZoneId;
 import java.util.Date;
@@ -40,7 +53,10 @@ public class SecurityController {
     private SessionRepository theSessionRepository;
     @Autowired
     private FAService theFAService;
-/*
+
+    @Value("${app.email.service.url}")
+    private String emailServiceUrl;
+
     private ValidatorsService theValidatorsService;
 
     @PostMapping("permissions-validation")
@@ -48,7 +64,7 @@ public class SecurityController {
                                          @RequestBody Permission thePermission) {
         boolean success=this.theValidatorsService.validationRolePermission(request,thePermission.getUrl(),thePermission.getMethod());
         return success;
-    }*/
+    }
 
     @PostMapping("login")
     public HashMap<String,Object> login(@RequestBody User theNewUser,
@@ -71,7 +87,9 @@ public class SecurityController {
 
             try{
                 RestTemplate restTemplate = new RestTemplate();
-                String url = "http://localhost:5000/api/v1/send-email";
+
+                // String url = "http://localhost:5000/api/v1/send-email";
+
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -83,7 +101,7 @@ public class SecurityController {
 
                 HttpEntity<HashMap<String, String>> requestEntity = new HttpEntity<>(emailRequest, headers);
 
-                restTemplate.postForObject(url, requestEntity, String.class);
+                restTemplate.postForObject(emailServiceUrl, requestEntity, String.class); // cambio de url quemada
             }catch(Exception e){
                 System.out.println("Error enviando correo: "+e.getMessage());
             }
@@ -125,31 +143,10 @@ public class SecurityController {
 
         User theUser = theSession.getUser();
         String token = theJwtService.generateToken(theUser);
-        LocalDateTime now = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-        String fechaHora = now.format(formatter);
 
         theSession.setToken(token);
         theSessionRepository.save(theSession);
 
-        try{
-            RestTemplate restTemplate = new RestTemplate();
-            String url = "http://localhost:5000/api/v1/send-email";
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            HashMap<String, String> emailRequest = new HashMap<>();
-            emailRequest.put("to", theUser.getEmail());
-            emailRequest.put("subject", "Nuevo acceso a la App");
-            emailRequest.put("message", "Hola, " + theUser.getName() + ". Se detectó un nuevo inicio de sesión en tu cuenta el día " + fechaHora + ". Si no fuiste tu, cambia tu contraseña de inmediato");
-
-            HttpEntity<HashMap<String, String>> requestEntity = new HttpEntity<>(emailRequest, headers);
-
-            restTemplate.postForObject(url, requestEntity, String.class);
-        }catch(Exception e){
-            System.out.println("Error enviando correo: "+e.getMessage());
-        }
 
         theUser.setPassword("");
         theResponse.put("token", token);
@@ -157,4 +154,67 @@ public class SecurityController {
         theResponse.put("status", "success");
         return theResponse;
     }
+    /*
+    // autenticacion con google :3
+
+    @PostMapping("google-login")
+    public HashMap<String, Object> googleLogin(@RequestBody Map<String, String> body,
+                                               HttpServletResponse response) throws IOException {
+        String googleToken = body.get("token");
+        HashMap<String, Object> theResponse = new HashMap<>();
+
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new JacksonFactory())
+                    .setAudience(Collections.singletonList("TU_CLIENT_ID_DE_GOOGLE.apps.googleusercontent.com"))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(googleToken);
+            if (idToken == null) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token inválido");
+                return theResponse;
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String name = (String) payload.get("name");
+
+            // Validar si el correo está en tus "allowedEmails"
+            if (!Arrays.asList("camiloreact12@gmail.com", "andresfelipe...", "jacobo...").contains(email)) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Correo no autorizado");
+                return theResponse;
+            }
+
+            // Buscar o crear usuario en tu BD
+            User user = theUserRepository.getUserByEmail(email);
+            if (user == null) {
+                user = new User();
+                user.setEmail(email);
+                user.setName(name);
+                user = theUserRepository.save(user);
+            }
+
+            // Generar tu propio JWT con JwtService
+            String token = theJwtService.generateToken(user);
+
+            // Guardar en Session (igual que login normal)
+            Session session = new Session();
+            session.setUser(user);
+            session.setToken(token);
+            session.setExpiration(new Date(System.currentTimeMillis() + 60 * 60 * 1000)); // 1h
+            theSessionRepository.save(session);
+
+            // Devolver al frontend
+            user.setPassword("");
+            theResponse.put("token", token);
+            theResponse.put("user", user);
+            theResponse.put("status", "success");
+            return theResponse;
+
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Error validando token");
+            return theResponse;
+        }
+    } */
+
+
 }
