@@ -39,7 +39,7 @@ import java.util.HashMap;
 import java.time.ZoneId;
 import java.util.Date;
 
-@CrossOrigin
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/public/security")
 public class SecurityController {

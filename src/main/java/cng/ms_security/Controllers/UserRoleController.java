@@ -73,6 +73,6 @@ public class UserRoleController {
         UserRole theUserRole = this.theUserRoleRepository.findById(id).orElse(null);
         if (theUserRole != null) {
             this.theUserRoleRepository.delete(theUserRole);
- }
-}
+        }
+    }
 }

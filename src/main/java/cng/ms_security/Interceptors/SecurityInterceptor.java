@@ -14,6 +14,8 @@ public class SecurityInterceptor implements HandlerInterceptor {
     @Autowired
     private ValidatorsService validatorService;
 
+
+
     @Override
     // Lógica a ejecutar después de que se haya manejado la solicitud por el controlador
     public boolean preHandle(HttpServletRequest request,
@@ -21,15 +23,22 @@ public class SecurityInterceptor implements HandlerInterceptor {
                              Object handler) throws Exception {
         System.out.println("➡️ Interceptando: " + request.getMethod() + " " + request.getRequestURI());
 
+
+        // ✅ Permitir siempre los preflight requests de CORS
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return true; // ⚠️ importante: retorna true para no bloquear el preflight
+        }
+
         boolean success = this.validatorService.validationRolePermission(
                 request, request.getRequestURI(), request.getMethod()
         );
 
         if (!success) {
-            System.out.println("⛔ Acceso denegado en Interceptor");
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 403
-            response.getWriter().write("No tienes permisos para acceder a esta ruta");
-            return false; // corta la cadena -> no llega al controller
+            response.setContentType("application/json");
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            // response.getWriter().write("{\"message\": \"No tienes permisos para acceder a esta ruta\"}");
+            return false; // detiene el flujo
         }
 
         System.out.println("✅ Acceso permitido, pasa al Controller");
